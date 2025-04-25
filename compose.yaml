@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    user: nobody
+    restart: unless-stopped
+
+  caddy:
+    image: caddy
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy:/data
+    restart: unless-stopped
+    user: nobody

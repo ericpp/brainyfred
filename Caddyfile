@@ -1,0 +1,7 @@
+{
+    email ericpp@gmail.com
+}
+
+ws.ericpp.dev {
+    reverse_proxy app:5000
+}

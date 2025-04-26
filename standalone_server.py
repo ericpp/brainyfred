@@ -338,9 +338,9 @@ class BrainyFredServer:
 
                 for release in recording["releases"]:
                     releases.append({
-                        "artist": recording["artist-credit"][0]["artist"]["name"],
+                        "artist": mb_artist,
+                        "title": mb_title,
                         "artist_mbid": recording["artist-credit"][0]["artist"]["id"],
-                        "title": recording["title"],
                         **release,
                     })
 
@@ -394,47 +394,39 @@ class BrainyFredServer:
 
         # Try to figure out the best release to show for this track
         release_groups = {
-            "studio_xw": [], "studio_us": [], "studio_other": [],
-            "live_xw": [], "live_us": [], "live_other": []
+            "live": [], "single": [], "studio": [], "other": [],
         }
 
         for release in releases:
             # Determine if it's a studio or live album and its country
             is_live = self._is_live_release(release)
 
-            # Primary/Secondary types (e.g. Album / Compilation )
+            # Primary/Secondary types (e.g. Album / Compilation)
             primary_type = release["release-group"].get("primary-type")
             secondary_types = release["release-group"].get("secondary-types", [])
 
-            # Is it a Compilation album
-            is_compilation = primary_type == "Compilation" or "Compilation" in secondary_types
-
-            # Which country is the release for (XW = worldwide)
-            country = release.get("country", "")
+            is_single = "Single" == primary_type
+            is_compilation = "Compilation" in secondary_types
 
             # Categorize
             if is_live: # live releases
-                if country == "XW":
-                    release_groups["live_xw"].append(release)
-                elif country == "US":
-                    release_groups["live_us"].append(release)
-                else:
-                    release_groups["live_other"].append(release)
+                release_groups["live"].append(release)
+
+            elif is_single and not is_compilation: # single
+                release_groups["single"].append(release)
+
             elif not is_compilation: # album releases
-                if country == "XW":
-                    release_groups["studio_xw"].append(release)
-                elif country == "US":
-                    release_groups["studio_us"].append(release)
-                else:
-                    release_groups["studio_other"].append(release)
+                release_groups["studio"].append(release)
+
             else: # whatever
-                release_groups["studio_other"].append(release)
+                release_groups["other"].append(release)
 
         # prioritize US and worldwide (XW) releases over all others
         if is_live_track: # prioritize live releases if live track
-            priority_order = ["live_xw", "live_us", "live_other", "studio_us", "studio_xw", "studio_other"]
+            priority_order = ["live", "single", "studio", "other"]
+
         else: # prioritize album release if not live track
-            priority_order = ["studio_xw", "studio_us", "studio_other", "live_us", "live_xw", "live_other"]
+            priority_order = ["single", "studio", "other"]
 
         # Return the first release from the first non-empty group
         for group_name in priority_order:

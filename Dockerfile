@@ -6,4 +6,4 @@ RUN pip install -r requirements.txt
 
 USER nobody
 
-CMD [ "python", "/app/standalone_server.py" ]
+CMD [ "python", "-u", "/app/standalone_server.py" ]

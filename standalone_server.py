@@ -309,15 +309,15 @@ class BrainyFredServer:
             "User-Agent": "BrainyFred/1.0.0 (your@email.com)"
         }
 
-        response = requests.get(url, params=params, headers=headers)
-
-        if response.status_code != 200:
-            return None
-
-        # Gather all releases of this track
-        releases = []
-
         try:
+            response = requests.get(url, params=params, headers=headers)
+
+            if response.status_code != 200:
+                return None
+
+            # Gather all releases of this track
+            releases = []
+
             data = response.json()
 
             if "recordings" not in data or not data["recordings"]:

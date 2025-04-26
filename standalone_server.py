@@ -432,9 +432,9 @@ class BrainyFredServer:
 
         # prioritize US and worldwide (XW) releases over all others
         if is_live_track: # prioritize live releases if live track
-            priority_order = ["live_us", "live_xw", "live_other", "studio_us", "studio_xw", "studio_other"]
+            priority_order = ["live_xw", "live_us", "live_other", "studio_us", "studio_xw", "studio_other"]
         else: # prioritize album release if not live track
-            priority_order = ["studio_us", "studio_xw", "studio_other", "live_us", "live_xw", "live_other"]
+            priority_order = ["studio_xw", "studio_us", "studio_other", "live_us", "live_xw", "live_other"]
 
         # Return the first release from the first non-empty group
         for group_name in priority_order:

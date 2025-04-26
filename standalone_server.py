@@ -217,10 +217,10 @@ class BrainyFredServer:
 
         # Get cover art if available
         if track_info["mbid"]:
-            self.artwork_url = self.get_cover_art_url(track_info["mbid"])
+            self.artwork_url = self.get_cover_art_url("release", track_info["mbid"])
 
         if not self.artwork_url and track_info["album_mbid"]:
-            self.artwork_url = self.get_cover_art_url(track_info["album_mbid"])
+            self.artwork_url = self.get_cover_art_url("release-group", track_info["album_mbid"])
 
         # Get artist website and relations
         if track_info["artist_mbid"]:
@@ -461,11 +461,10 @@ class BrainyFredServer:
 
         return False
 
-    def get_cover_art_url(self, mbid):
+    def get_cover_art_url(self, type, mbid):
         """Add cover art URL to the result dict if available"""
         try:
-            # Try release cover art first
-            cover_art_url = f"https://coverartarchive.org/release/{mbid}/front-500"
+            cover_art_url = f"https://coverartarchive.org/{type}/{mbid}/front-500"
 
             if requests.head(cover_art_url).status_code < 400:
                 return cover_art_url

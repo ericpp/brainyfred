@@ -258,12 +258,15 @@ class BrainyFredServer:
         last_artist = None
         last_title = None
 
+        # Check if this is a live track
+        is_live_track = self._is_live_track(title)
+
         for artist_query, title_query in search_options:
             if (artist_query, title_query) == (last_artist, last_title):
                 continue # skip same search
 
             print(f"Trying search with: {title_query} - {artist_query}")
-            result = self._do_musicbrainz_search(artist_query, title_query)
+            result = self._do_musicbrainz_search(artist_query, title_query, is_live_track)
 
             if result:
                 return result
@@ -295,7 +298,7 @@ class BrainyFredServer:
 
         return re.sub(r'\s+', ' ', clean_text).strip()
 
-    def _do_musicbrainz_search(self, artist, title):
+    def _do_musicbrainz_search(self, artist, title, is_live_track):
         """Perform the actual MusicBrainz search"""
         url = "https://musicbrainz.org/ws/2/recording"
 
@@ -351,9 +354,6 @@ class BrainyFredServer:
         if not releases:
             return None
 
-        # Check if this is a live track
-        is_live_track = self._is_live_track(title)
-
         # Find the best release to show (try to skip compilation/soundtrack releases)
         release = self._select_best_release(releases, is_live_track)
 
@@ -374,14 +374,6 @@ class BrainyFredServer:
         }
 
     def _is_live_track(self, title):
-        """Check if the track title suggests it's a live recording"""
-        title_lower = title.lower()
-        live_indicators = ["live", "in concert", "unplugged", "acoustic", "session",
-                          "(live)", "[live]", "live at", "live in"]
-
-        for indicator in live_indicators:
-            if indicator in title_lower:
-                return True
 
         # Check for (city name) or [venue name] patterns
         if re.search(r'\([^)]*\d{4}\)', title) or re.search(r'\[[^]]*\d{4}\]', title):

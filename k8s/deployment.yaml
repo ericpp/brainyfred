@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brainyfred
+  labels:
+    app: brainyfred
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: brainyfred
+  template:
+    metadata:
+      labels:
+        app: brainyfred
+    spec:
+      containers:
+      - name: brainyfred
+        image: brainyfred:latest
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          runAsUser: 65534  # nobody
+          runAsGroup: 65534

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: brainyfred
+  labels:
+    app: brainyfred
+spec:
+  type: ClusterIP
+  ports:
+  - port: 443
+    targetPort: 5000
+    protocol: TCP
+    name: wss
+  selector:
+    app: brainyfred 

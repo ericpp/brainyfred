@@ -35,6 +35,11 @@ class BrainyFredServer:
         self.last_song_info = None
         self.artist_relations = []
 
+        # Connection tracking
+        self.connected_clients = set()
+        self.stream_active = False
+        self.stream_thread = None
+        self.stream_lock = threading.Lock()
 
         # Try to initialize Socket.IO with gevent
         self.sio = socketio.Server(
@@ -51,9 +56,10 @@ class BrainyFredServer:
 
         # Socket.IO event handlers
         self.sio.on('connect', self.socketio_connect)
+        self.sio.on('disconnect', self.socketio_disconnect)
 
-        # Start background thread
-        self.start_background_thread()
+        # Log that server is ready
+        self.log("Server ready - will start streaming when clients connect")
 
         # Start Socket.IO server
         self.start_socketio_server()
@@ -82,8 +88,28 @@ class BrainyFredServer:
         client_ip = environ.get('REMOTE_ADDR', 'unknown')
         self.log(f"Socket.IO client connected: {client_ip} (sid: {sid})")
 
+        with self.stream_lock:
+            self.connected_clients.add(sid)
+
+            # Start streaming if this is the first client
+            if len(self.connected_clients) == 1 and not self.stream_active:
+                self.log("First client connected, starting stream...")
+                self.start_streaming()
+
         # Send current song info immediately upon connection
         self.socketio_send_value_data(sid)
+
+    def socketio_disconnect(self, sid):
+        """Handle Socket.IO client disconnection"""
+        self.log(f"Socket.IO client disconnected (sid: {sid})")
+
+        with self.stream_lock:
+            self.connected_clients.discard(sid)
+
+            # Stop streaming if no clients are connected
+            if len(self.connected_clients) == 0 and self.stream_active:
+                self.log("Last client disconnected, stopping stream...")
+                self.stop_streaming()
 
     def socketio_send_value_data(self, sid=None):
         """Send live value info to clients"""
@@ -129,22 +155,43 @@ class BrainyFredServer:
 
         print('remoteValue', extended_data)
 
-    def start_background_thread(self):
-        """Start the background thread for streaming"""
-        self.stream_thread = threading.Thread(target=self.stream_background, daemon=True)
-        self.stream_thread.start()
-        self.log("Ready - streaming started")
+    def start_streaming(self):
+        """Start the streaming thread"""
+        if not self.stream_active:
+            self.stream_active = True
+            self.stream_thread = threading.Thread(target=self.stream_background, daemon=True)
+            self.stream_thread.start()
+            self.log("Streaming started")
+
+    def stop_streaming(self):
+        """Stop the streaming thread"""
+        self.stream_active = False
+        self.log("Streaming stopped")
 
     def stream_background(self):
         """Background thread that continuously streams and processes metadata"""
-        while True:
+        while self.stream_active:
             try:
+                # Check if we still have connected clients
+                with self.stream_lock:
+                    if len(self.connected_clients) == 0:
+                        self.log("No clients connected, stopping stream...")
+                        self.stream_active = False
+                        break
+
                 self.log("Connecting to stream...")
 
                 song_info_generator = self.stream_icecast()
 
-                while True:
+                while self.stream_active:
                     try:
+                        # Check if we still have connected clients
+                        with self.stream_lock:
+                            if len(self.connected_clients) == 0:
+                                self.log("No clients connected, stopping stream...")
+                                self.stream_active = False
+                                break
+
                         song_info = next(song_info_generator)
 
                         if not song_info or song_info == self.last_song_info:
@@ -164,11 +211,15 @@ class BrainyFredServer:
                         self.log(f"Error processing stream item: {e}")
                         break
 
-                time.sleep(5)  # Wait before reconnecting
+                if self.stream_active:  # Only wait if we're still supposed to be active
+                    time.sleep(5)  # Wait before reconnecting
 
             except Exception as e:
                 self.log(f"Stream error: {e}")
-                time.sleep(10)  # Wait before trying again
+                if self.stream_active:  # Only wait if we're still supposed to be active
+                    time.sleep(10)  # Wait before trying again
+
+        self.log("Stream background thread ended")
 
     def process_song_info(self, song_info):
         """Process a new song from the stream"""
@@ -589,7 +640,7 @@ class BrainyFredServer:
                 if 'icy-metaint' in response.headers:
                     metaint = int(response.headers['icy-metaint'])
 
-                    while True:
+                    while self.stream_active:
                         try:
                             # Skip audio data
                             chunk = response.raw.read(metaint)
@@ -625,7 +676,7 @@ class BrainyFredServer:
                             break
                 else:
                     # Without metaint, keep connection open but can't get new metadata
-                    while True:
+                    while self.stream_active:
                         # Read small chunks to keep connection alive
                         if not response.raw.read(8192):
                             break
